@@ -9,8 +9,6 @@ _organisers: dict[str, Organiser] = {}
 
 @router.post("", response_model=Organiser, status_code=201)
 def create_organiser(organiser: Organiser):
-    if organiser.organiser_id in _organisers:
-        raise HTTPException(status_code=409, detail="Organiser already exists")
     _organisers[organiser.organiser_id] = organiser
     return organiser
 
@@ -30,7 +28,7 @@ def get_organiser(organiser_id: str):
 @router.put("/{organiser_id}", response_model=Organiser)
 def update_organiser(organiser_id: str, organiser: Organiser):
     if organiser_id not in _organisers:
-        raise HTTPException(status_code=404, detail="Meetup not found")
+        raise HTTPException(status_code=404, detail="Organiser not found")
     _organisers[organiser_id] = organiser
     return organiser
 

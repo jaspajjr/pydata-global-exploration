@@ -9,8 +9,6 @@ _meetups: dict[str, Meetup] = {}
 
 @router.post("", response_model=Meetup, status_code=201)
 def create_meetup(meetup: Meetup):
-    if meetup.meetup_id in _meetups:
-        raise HTTPException(status_code=409, detail="Meetup already exists")
     _meetups[meetup.meetup_id] = meetup
     return meetup
 

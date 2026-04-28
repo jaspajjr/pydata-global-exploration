@@ -1,0 +1,71 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: europe-west2
+  REGISTRY: europe-west2-docker.pkg.dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push API image
+        run: |
+          docker build -f Dockerfile.api \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:latest \
+            .
+          docker push --all-tags ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api
+
+      - name: Build and push UI image
+        run: |
+          docker build -f Dockerfile.ui \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui:latest \
+            .
+          docker push --all-tags ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui
+
+      - name: Deploy API to Cloud Run
+        id: deploy-api
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pydata-global-api
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{ github.sha }}
+          region: ${{ env.REGION }}
+          flags: >-
+            --ingress=internal
+            --allow-unauthenticated
+            --port=8080
+
+      - name: Deploy UI to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: pydata-global-ui
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui:${{ github.sha }}
+          region: ${{ env.REGION }}
+          flags: >-
+            --ingress=all
+            --allow-unauthenticated
+            --port=8080
+            --set-env-vars=API_BASE=${{ steps.deploy-api.outputs.url }}
