@@ -2,7 +2,8 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
@@ -51,21 +52,36 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: pydata-global-api
-          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{ github.sha }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{
+            github.sha }}
           region: ${{ env.REGION }}
           flags: >-
-            --ingress=internal
-            --allow-unauthenticated
-            --port=8080
+            --ingress=internal --allow-unauthenticated --port=8080
+
+      - name: Allow unauthenticated Cloud Run invocations
+        run: |
+          gcloud org-policies set-policy --project=${{ env.PROJECT_ID }} - <<'EOF'
+          name: projects/${{ env.PROJECT_ID }}/policies/iam.allowedPolicyMemberTypes
+          spec:
+            rules:
+              - allowAll: true
+          EOF
 
       - name: Deploy UI to Cloud Run
+        id: deploy-ui
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: pydata-global-ui
-          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui:${{ github.sha }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/ui:${{ github.sha
+            }}
           region: ${{ env.REGION }}
           flags: >-
-            --ingress=all
-            --allow-unauthenticated
-            --port=8080
+            --ingress=all --allow-unauthenticated --port=8080
             --set-env-vars=API_BASE=${{ steps.deploy-api.outputs.url }}
+
+      - name: Grant public access to UI
+        run: |
+          gcloud run services add-iam-policy-binding pydata-global-ui \
+            --region=${{ env.REGION }} \
+            --member="allUsers" \
+            --role="roles/run.invoker"
