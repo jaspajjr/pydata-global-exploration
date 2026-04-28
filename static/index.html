@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyData Global Registry</title>
+  <style>
+    body { font-family: sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { color: #1a1a2e; }
+    #msg { padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 1rem; display: none; }
+    #msg.error { display: block; background: #fce8e6; color: #c5221f; }
+    #msg.success { display: block; background: #e6f4ea; color: #137333; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 0; }
+    .tab-btn { padding: 0.5rem 1.5rem; border: none; background: none; cursor: pointer; font-size: 1rem; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    .tab-btn.active { border-bottom-color: #1a73e8; color: #1a73e8; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #e0e0e0; }
+    th { background: #f8f9fa; font-weight: 600; }
+    td { word-break: break-all; max-width: 200px; }
+    .actions { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .action-btn { padding: 0.4rem 1.2rem; border: 1px solid #dadce0; background: #fff; cursor: pointer; border-radius: 4px; font-size: 0.9rem; }
+    .action-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    form { display: flex; flex-direction: column; gap: 0.6rem; max-width: 480px; }
+    label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.9rem; font-weight: 500; }
+    input, select { padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+    select { width: 100%; margin-bottom: 1rem; }
+    button[type=submit] { padding: 0.45rem 1.5rem; background: #1a73e8; color: #fff; border: none; border-radius: 4px; cursor: pointer; align-self: flex-start; font-size: 0.95rem; }
+    button[type=submit]:hover { background: #1558b0; }
+    .btn-danger { background: #d93025 !important; }
+    .btn-danger:hover { background: #b31412 !important; }
+  </style>
+</head>
+<body>
+  <h1>PyData Global Registry</h1>
+  <div id="msg"></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('organisers', this)">Organisers</button>
+    <button class="tab-btn" onclick="switchTab('meetups', this)">Meetups</button>
+  </div>
+
+  <!-- ── ORGANISERS ────────────────────────────────────────────────────────── -->
+  <div id="tab-organisers" class="tab-content active">
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>LinkedIn</th><th>Photo</th></tr></thead>
+      <tbody id="org-tbody"><tr><td colspan="5">Loading…</td></tr></tbody>
+    </table>
+
+    <div class="actions">
+      <button class="action-btn active" onclick="orgAction('add', this)">Add</button>
+      <button class="action-btn" onclick="orgAction('edit', this)">Edit</button>
+      <button class="action-btn" onclick="orgAction('delete', this)">Delete</button>
+    </div>
+
+    <div id="org-add" class="panel active">
+      <form onsubmit="createOrganiser(event)">
+        <label>Name <input name="name" required></label>
+        <label>Email <input name="email" type="email" required></label>
+        <label>LinkedIn URL <input name="linkedin"></label>
+        <label>Photo URL <input name="photo"></label>
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div id="org-edit" class="panel">
+      <label>Select organiser <select id="org-edit-select" onchange="populateOrgEdit()"></select></label>
+      <form onsubmit="updateOrganiser(event)">
+        <input type="hidden" id="org-edit-id">
+        <label>Name <input id="org-edit-name" required></label>
+        <label>Email <input id="org-edit-email" type="email" required></label>
+        <label>LinkedIn URL <input id="org-edit-linkedin"></label>
+        <label>Photo URL <input id="org-edit-photo"></label>
+        <button type="submit">Save</button>
+      </form>
+    </div>
+
+    <div id="org-delete" class="panel">
+      <form onsubmit="deleteOrganiser(event)">
+        <label>Select organiser to delete <select id="org-delete-select"></select></label>
+        <button type="submit" class="btn-danger">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── MEETUPS ───────────────────────────────────────────────────────────── -->
+  <div id="tab-meetups" class="tab-content">
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>City</th><th>Chapter Email</th><th>Google Group</th><th>Organisers</th></tr></thead>
+      <tbody id="meetup-tbody"><tr><td colspan="6">Loading…</td></tr></tbody>
+    </table>
+
+    <div class="actions">
+      <button class="action-btn active" onclick="meetupAction('add', this)">Add</button>
+      <button class="action-btn" onclick="meetupAction('edit', this)">Edit</button>
+      <button class="action-btn" onclick="meetupAction('delete', this)">Delete</button>
+    </div>
+
+    <div id="meetup-add" class="panel active">
+      <form onsubmit="createMeetup(event)">
+        <label>Name <input name="name" required></label>
+        <label>City <input name="city" required></label>
+        <label>Chapter Email <input name="chapter_email" type="email"></label>
+        <label>Google Group <input name="google_group"></label>
+        <label>Organiser IDs (comma-separated) <input name="organisers"></label>
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div id="meetup-edit" class="panel">
+      <label>Select meetup <select id="meetup-edit-select" onchange="populateMeetupEdit()"></select></label>
+      <form onsubmit="updateMeetup(event)">
+        <input type="hidden" id="meetup-edit-id">
+        <label>Name <input id="meetup-edit-name" required></label>
+        <label>City <input id="meetup-edit-city" required></label>
+        <label>Chapter Email <input id="meetup-edit-chapter-email" type="email"></label>
+        <label>Google Group <input id="meetup-edit-google-group"></label>
+        <label>Organiser IDs (comma-separated) <input id="meetup-edit-organisers"></label>
+        <button type="submit">Save</button>
+      </form>
+    </div>
+
+    <div id="meetup-delete" class="panel">
+      <form onsubmit="deleteMeetup(event)">
+        <label>Select meetup to delete <select id="meetup-delete-select"></select></label>
+        <button type="submit" class="btn-danger">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let organisers = [];
+    let meetups = [];
+
+    // ── Utilities ──────────────────────────────────────────────────────────────
+
+    function showMsg(text, isError) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = isError ? 'error' : 'success';
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.textContent = ''; el.className = ''; }, 4000);
+    }
+
+    async function api(path, opts = {}) {
+      const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      if (!r.ok) throw new Error(await r.text());
+      return r.status === 204 ? null : r.json();
+    }
+
+    // ── Tabs ───────────────────────────────────────────────────────────────────
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // ── Action panels ──────────────────────────────────────────────────────────
+
+    function orgAction(action, btn) {
+      ['add', 'edit', 'delete'].forEach(a => document.getElementById('org-' + a).classList.remove('active'));
+      document.querySelectorAll('#tab-organisers .action-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('org-' + action).classList.add('active');
+      btn.classList.add('active');
+      if (action !== 'add') populateOrgSelects();
+    }
+
+    function meetupAction(action, btn) {
+      ['add', 'edit', 'delete'].forEach(a => document.getElementById('meetup-' + a).classList.remove('active'));
+      document.querySelectorAll('#tab-meetups .action-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('meetup-' + action).classList.add('active');
+      btn.classList.add('active');
+      if (action !== 'add') populateMeetupSelects();
+    }
+
+    // ── Organisers ─────────────────────────────────────────────────────────────
+
+    async function loadOrganisers() {
+      organisers = await api('/organisers');
+      document.getElementById('org-tbody').innerHTML = organisers.length
+        ? organisers.map(o => `<tr>
+            <td>${o.organiser_id}</td><td>${o.name}</td><td>${o.email}</td>
+            <td>${o.linkedin || ''}</td><td>${o.photo || ''}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="5">No organisers yet.</td></tr>';
+    }
+
+    function populateOrgSelects() {
+      const opts = organisers.map(o =>
+        `<option value="${o.organiser_id}">${o.name} (${o.organiser_id.slice(0,8)}…)</option>`
+      ).join('');
+      document.getElementById('org-edit-select').innerHTML = opts;
+      document.getElementById('org-delete-select').innerHTML = opts;
+      populateOrgEdit();
+    }
+
+    function populateOrgEdit() {
+      const id = document.getElementById('org-edit-select').value;
+      const o = organisers.find(x => x.organiser_id === id);
+      if (!o) return;
+      document.getElementById('org-edit-id').value = o.organiser_id;
+      document.getElementById('org-edit-name').value = o.name;
+      document.getElementById('org-edit-email').value = o.email;
+      document.getElementById('org-edit-linkedin').value = o.linkedin || '';
+      document.getElementById('org-edit-photo').value = o.photo || '';
+    }
+
+    async function createOrganiser(e) {
+      e.preventDefault();
+      const f = e.target;
+      try {
+        await api('/organisers', { method: 'POST', body: JSON.stringify({
+          name: f.name.value, email: f.email.value,
+          linkedin: f.linkedin.value, photo: f.photo.value,
+        })});
+        f.reset();
+        showMsg('Organiser created.');
+        await loadOrganisers();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    async function updateOrganiser(e) {
+      e.preventDefault();
+      const id = document.getElementById('org-edit-id').value;
+      try {
+        await api(`/organisers/${id}`, { method: 'PUT', body: JSON.stringify({
+          organiser_id: id,
+          name: document.getElementById('org-edit-name').value,
+          email: document.getElementById('org-edit-email').value,
+          linkedin: document.getElementById('org-edit-linkedin').value,
+          photo: document.getElementById('org-edit-photo').value,
+        })});
+        showMsg('Organiser updated.');
+        await loadOrganisers();
+        populateOrgSelects();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    async function deleteOrganiser(e) {
+      e.preventDefault();
+      const id = document.getElementById('org-delete-select').value;
+      try {
+        await api(`/organisers/${id}`, { method: 'DELETE' });
+        showMsg('Organiser deleted.');
+        await loadOrganisers();
+        populateOrgSelects();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    // ── Meetups ────────────────────────────────────────────────────────────────
+
+    async function loadMeetups() {
+      meetups = await api('/meetups');
+      document.getElementById('meetup-tbody').innerHTML = meetups.length
+        ? meetups.map(m => `<tr>
+            <td>${m.meetup_id}</td><td>${m.name}</td><td>${m.city}</td>
+            <td>${m.chapter_email || ''}</td><td>${m.google_group || ''}</td>
+            <td>${(m.organisers || []).join(', ')}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="6">No meetups yet.</td></tr>';
+    }
+
+    function populateMeetupSelects() {
+      const opts = meetups.map(m =>
+        `<option value="${m.meetup_id}">${m.name} (${m.meetup_id.slice(0,8)}…)</option>`
+      ).join('');
+      document.getElementById('meetup-edit-select').innerHTML = opts;
+      document.getElementById('meetup-delete-select').innerHTML = opts;
+      populateMeetupEdit();
+    }
+
+    function populateMeetupEdit() {
+      const id = document.getElementById('meetup-edit-select').value;
+      const m = meetups.find(x => x.meetup_id === id);
+      if (!m) return;
+      document.getElementById('meetup-edit-id').value = m.meetup_id;
+      document.getElementById('meetup-edit-name').value = m.name;
+      document.getElementById('meetup-edit-city').value = m.city;
+      document.getElementById('meetup-edit-chapter-email').value = m.chapter_email || '';
+      document.getElementById('meetup-edit-google-group').value = m.google_group || '';
+      document.getElementById('meetup-edit-organisers').value = (m.organisers || []).join(', ');
+    }
+
+    async function createMeetup(e) {
+      e.preventDefault();
+      const f = e.target;
+      try {
+        await api('/meetups', { method: 'POST', body: JSON.stringify({
+          name: f.name.value, city: f.city.value,
+          chapter_email: f.chapter_email.value, google_group: f.google_group.value,
+          organisers: f.organisers.value.split(',').map(s => s.trim()).filter(Boolean),
+        })});
+        f.reset();
+        showMsg('Meetup created.');
+        await loadMeetups();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    async function updateMeetup(e) {
+      e.preventDefault();
+      const id = document.getElementById('meetup-edit-id').value;
+      try {
+        await api(`/meetups/${id}`, { method: 'PUT', body: JSON.stringify({
+          meetup_id: id,
+          name: document.getElementById('meetup-edit-name').value,
+          city: document.getElementById('meetup-edit-city').value,
+          chapter_email: document.getElementById('meetup-edit-chapter-email').value,
+          google_group: document.getElementById('meetup-edit-google-group').value,
+          organisers: document.getElementById('meetup-edit-organisers').value.split(',').map(s => s.trim()).filter(Boolean),
+        })});
+        showMsg('Meetup updated.');
+        await loadMeetups();
+        populateMeetupSelects();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    async function deleteMeetup(e) {
+      e.preventDefault();
+      const id = document.getElementById('meetup-delete-select').value;
+      try {
+        await api(`/meetups/${id}`, { method: 'DELETE' });
+        showMsg('Meetup deleted.');
+        await loadMeetups();
+        populateMeetupSelects();
+      } catch (err) { showMsg(err.message, true); }
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    loadOrganisers();
+    loadMeetups();
+  </script>
+</body>
+</html>
