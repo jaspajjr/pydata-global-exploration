@@ -39,22 +39,15 @@ jobs:
             .
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api
 
-      - name: Allow unauthenticated Cloud Run invocations
-        run: |
-          printf 'name: projects/%s/policies/iam.allowedPolicyMemberTypes\nspec:\n  rules:\n    - allowAll: true\n' \
-            "${PROJECT_ID}" > /tmp/org-policy.yaml
-          gcloud org-policies set-policy --project="${PROJECT_ID}" /tmp/org-policy.yaml
-
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: pydata-global-api
-          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{ github.sha }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/pydata-global/api:${{
+            github.sha }}
           region: ${{ env.REGION }}
           flags: >-
-            --ingress=all
-            --allow-unauthenticated
-            --port=8080
+            --ingress=all --allow-unauthenticated --port=8080
 
       - name: Grant public access
         run: |
