@@ -41,12 +41,9 @@ jobs:
 
       - name: Allow unauthenticated Cloud Run invocations
         run: |
-          gcloud org-policies set-policy --project=${{ env.PROJECT_ID }} - <<'EOF'
-          name: projects/${{ env.PROJECT_ID }}/policies/iam.allowedPolicyMemberTypes
-          spec:
-            rules:
-              - allowAll: true
-          EOF
+          printf 'name: projects/%s/policies/iam.allowedPolicyMemberTypes\nspec:\n  rules:\n    - allowAll: true\n' \
+            "${PROJECT_ID}" > /tmp/org-policy.yaml
+          gcloud org-policies set-policy --project="${PROJECT_ID}" /tmp/org-policy.yaml
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
